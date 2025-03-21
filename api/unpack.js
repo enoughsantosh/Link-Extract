@@ -41,27 +41,22 @@ function unPack(code) {
     return code.join("\n");
 }
 
-module.exports = (req, res) => {
+module.exports = async (req, res) => {
     if (req.method !== 'POST') {
-        return res.status(405).send('Method Not Allowed');
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    let body = '';
-    req.on('data', chunk => {
-        body += chunk.toString();
-    });
-
-    req.on('end', () => {
-        try {
-            const { code } = JSON.parse(body);
-            if (!code) {
-                return res.status(400).send('No code provided');
-            }
-            
-            const unpacked = unPack(code);
-            res.status(200).send(unpacked);
-        } catch (error) {
-            res.status(500).send('Error unpacking code: ' + error.message);
+    try {
+        const { code } = req.body;
+        if (!code) {
+            return res.status(400).json({ error: 'No code provided' });
         }
-    });
+        
+        const unpacked = unPack(code);
+        res.status(200).send(unpacked);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error unpacking code: ' + error.message });
+    }
 };
