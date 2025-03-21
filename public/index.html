@@ -2,55 +2,119 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>UnPacker</title>
-    <style> textarea {width: 100%} </style>
+    <title>UnPacker - Track Extractor</title>
+    <style>
+        textarea { width: 100%; height: 200px; }
+        .results { margin-top: 20px; }
+        .section { margin-bottom: 20px; }
+        h3 { margin-bottom: 10px; }
+        ul { list-style-type: none; padding-left: 0; }
+        li { margin: 5px 0; }
+    </style>
 </head>
 <body>
     <div class="container_12">
         <div class="grid_9">
-            <h3>JavaScript Packer UnPacker</h3>
+            <h3>JavaScript Packer UnPacker - Track Extractor</h3>
         </div>
-        <div class="clear"> </div>
+        <div class="clear"></div>
         <div class="grid_7">
             <p>
                 <label>
-                    <textarea name="input" id="input" cols="60" rows="10">eval(function(p,a,c,k,e,r){e=String;if(!''.replace(/^/,String)){while(c--)r[c]=k[c]||c;k=[function(e){return r[e]}];e=function(){return'\\w+'};c=1};while(c--)if(k[c])p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c]);return p}('(0(){4 1="5 6 7 8";0 2(3){9(3)}2(1)})();',10,10,'function|b|something|a|var|some|sample|packed|code|alert'.split('|'),0,{}))</textarea>
+                    <textarea name="input" id="input" cols="60" rows="10">Paste your packed JW Player code here</textarea>
                 </label>
             </p>
             <p>
                 <label>
-                    <input type="button" name="unpack" id="unpack" value="UnPack">
+                    <input type="button" name="unpack" id="unpack" value="Extract Tracks">
                 </label>
                 <label>
                     <input type="button" name="clear" id="clear" value="Clear">
                 </label>
             </p>
-            <p>
-                <label>
-                    <textarea name="out" id="out" cols="60" rows="10"></textarea>
-                </label>
-            </p>
+            <div class="results">
+                <div class="section" id="audio-tracks">
+                    <h3>Audio Tracks</h3>
+                    <ul id="audio-list"></ul>
+                </div>
+                <div class="section" id="video-tracks">
+                    <h3>Video Tracks</h3>
+                    <ul id="video-list"></ul>
+                </div>
+                <div class="section" id="subtitles">
+                    <h3>Subtitles</h3>
+                    <ul id="subtitle-list"></ul>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.1.0.js"></script>
     <script>
-        $("#unpack").click(function () {
+        $("#unpack").click(function() {
             $.ajax({
                 url: '/api/unpack',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ code: $("#input").val() }),
                 success: function(data) {
-                    $("#out").val(data);
+                    // Clear previous results
+                    $("#audio-list").empty();
+                    $("#video-list").empty();
+                    $("#subtitle-list").empty();
+
+                    try {
+                        // Create a sandbox to safely evaluate the code
+                        const sandbox = {
+                            jwplayer: function() {
+                                return {
+                                    setup: function(config) {
+                                        // Extract audio tracks
+                                        if (config.tracks) {
+                                            config.tracks.forEach(track => {
+                                                if (track.kind === 'audio' || !track.kind) {
+                                                    $("#audio-list").append(`<li>${track.file} ${track.label ? '(' + track.label + ')' : ''}</li>`);
+                                                }
+                                                if (track.kind === 'captions' || track.kind === 'subtitles') {
+                                                    $("#subtitle-list").append(`<li>${track.file} ${track.label ? '(' + track.label + ')' : ''}</li>`);
+                                                }
+                                            });
+                                        }
+
+                                        // Extract video sources
+                                        if (config.sources) {
+                                            config.sources.forEach(source => {
+                                                $("#video-list").append(`<li>${source.file} ${source.label ? '(' + source.label + ')' : ''}</li>`);
+                                            });
+                                        }
+                                        // Check primary file if it exists
+                                        if (config.file) {
+                                            $("#video-list").append(`<li>${config.file}</li>`);
+                                        }
+                                    }
+                                };
+                            }
+                        };
+
+                        // Evaluate the unpacked code in the sandbox
+                        const fn = new Function('jwplayer', 'var playlist = []; ' + data);
+                        fn(sandbox.jwplayer);
+
+                    } catch (error) {
+                        $("#audio-list").append(`<li>Error processing code: ${error.message}</li>`);
+                    }
                 },
                 error: function(xhr, status, error) {
-                    $("#out").val('Error: ' + xhr.responseText);
+                    $("#audio-list").html(`<li>Error: ${xhr.responseText}</li>`);
                 }
             });
         });
-        $("#clear").click(function () {
+
+        $("#clear").click(function() {
             $("textarea").val('');
+            $("#audio-list").empty();
+            $("#video-list").empty();
+            $("#subtitle-list").empty();
         });
     </script>
 </body>
