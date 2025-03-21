@@ -36,8 +36,17 @@
     <script src="https://code.jquery.com/jquery-3.1.0.js"></script>
     <script>
         $("#unpack").click(function () {
-            $.get('/api/unpack', { code: $("#input").val() }, function(data) {
-                $("#out").val(data);
+            $.ajax({
+                url: '/api/unpack',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ code: $("#input").val() }),
+                success: function(data) {
+                    $("#out").val(data);
+                },
+                error: function(xhr, status, error) {
+                    $("#out").val('Error: ' + xhr.responseText);
+                }
             });
         });
         $("#clear").click(function () {
