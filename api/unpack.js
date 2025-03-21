@@ -42,15 +42,26 @@ function unPack(code) {
 }
 
 module.exports = (req, res) => {
-    const { code } = req.query;
-    if (!code) {
-        return res.status(400).send('No code provided');
+    if (req.method !== 'POST') {
+        return res.status(405).send('Method Not Allowed');
     }
-    
-    try {
-        const unpacked = unPack(code);
-        res.status(200).send(unpacked);
-    } catch (error) {
-        res.status(500).send('Error unpacking code: ' + error.message);
-    }
+
+    let body = '';
+    req.on('data', chunk => {
+        body += chunk.toString();
+    });
+
+    req.on('end', () => {
+        try {
+            const { code } = JSON.parse(body);
+            if (!code) {
+                return res.status(400).send('No code provided');
+            }
+            
+            const unpacked = unPack(code);
+            res.status(200).send(unpacked);
+        } catch (error) {
+            res.status(500).send('Error unpacking code: ' + error.message);
+        }
+    });
 };
